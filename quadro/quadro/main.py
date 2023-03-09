@@ -6,6 +6,7 @@ import threading
 from quadro_interface.srv import Coder, Decoder
 import pickle
 import struct
+import time
 class Main(Node):
     def __init__(self):
         self.check = 'loremipsum'
@@ -14,45 +15,33 @@ class Main(Node):
         self.keyPublisher = self.create_publisher(String, 'ket_data',10)
         self.subcriber = self.create_subscription(String, 'telemetry', self.callback, 10)
         self.Mainsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.Mainsocket.bind('',9090)
+        self.Mainsocket.bind(('',8080))
         self.Mainsocket.listen(1)
         self.enc = self.create_client(Coder, 'coder')
-        while not self.cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('service not available, waiting again...')
+        while not self.enc.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('encoding service not available, waiting again...')
         self.reqEn = Coder.Request()
         self.dec = self.create_client(Coder, 'coder')
-        while not self.cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('service not available, waiting again...')
+        while not self.dec.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('decoding service not available, waiting again...')
         self.reqDec = Decoder.Request()
         self.conn, self.addr = self.Mainsocket.accept()
         
         self.key = self.getKey()
-        self.keyPublisher.publish(self.key)
+        msg = String()
+        msg.data = self.key
+        self.keyPublisher.publish(msg)
         while True:
             data = self.getData()
-            data = self.decode(data).split()
+            self.get_logger().info('received daa : %s' %data)
+            data = self.decode_data(data).data.split()
             if data[0] == self.check():
-                self.controls(data[1::])
+                print(data)
+                #self.controls(data[1::])
             else:
                 pass
     
-    def encode(self, data):
-        data = data[::-1]
-        data = list(data)
-        j= 0
-        for i,item in enumerate(data):
-            next_pos = ord(item) + ord(self.key[j])
-            while next_pos > 126:
-                next_pos = 32+(next_pos-126)
-            data[i] = chr(next_pos)
-            j+=1
-            if j == len(self.key):
-                j = 0
-            if i % 2 != 0:
-                temp = data[i-1]
-                data[i-1]= data[i]
-                data[i] = temp
-        return ''.join(data)
+   
 
 
 
@@ -64,72 +53,58 @@ class Main(Node):
         pass
 
     def callback(self, msg):
-        data = self.encode(msg.data)
+        data = self.encode_data(msg.data)
         self.con.sendall(data.encode())   
 
     def getData(self):
         data = b''
         payload_size = struct.calcsize('Q')
         while len(data)< payload_size:
-            packet = self.Mainsocket.recv(1024)
+            packet = self.conn.recv(1024)
             if not packet:
                 break
-        data += packet
+            data += packet
         packed_msg_size = data[:payload_size]
         data = data[payload_size:]
         msg_size = struct.unpack("Q", packed_msg_size)[0]
         while len(data) < msg_size:
-            data += self.Mainsocket.recv(1024)
+            data += self.conn.recv(1024)
         key_data = data[:msg_size]
         data = data[msg_size:]
         return pickle.loads(key_data)
 
 
     def getKey(self):
+        time.sleep(3)
         data = b''
         payload_size = struct.calcsize('Q')
+        print(payload_size)
         while len(data)< payload_size:
-            packet = self.Mainsocket.recv(1)
+            packet = self.conn.recv(1)
             if not packet:
                 break
-        data += packet
+            print(packet)
+            data += packet
         packed_msg_size = data[:payload_size]
         data = data[payload_size:]
         msg_size = struct.unpack("Q", packed_msg_size)[0]
         while len(data) < msg_size:
-            data += self.Mainsocket.recv(1)
+            data += self.conn.recv(1)
         key_data = data[:msg_size]
         data = data[msg_size:]
         return pickle.loads(key_data)
 
 
-    def decode(self, data):
-        j = 0
-        data = list(data)
-        for i,item in enumerate(data):
-            if i%2 == 0 and i<len(data)-1:
-                temp = data[i+1]
-                data[i+1]= data[i]
-                data[i] = temp
-        for i,item in enumerate(data):
-            next_pos = ord(item) - ord(self.key[j])
-            while next_pos <32:
-                next_pos = -32+(next_pos+126)
-            data[i] = chr(next_pos)
-            j+=1
-            if j == len(self.key):
-                j = 0
+    
 
-        return ''.join(data)[::-1]
-
-    def send_data(self, data):
+    def encode_data(self, data):
         self.reqEn.data = data
-        self.future = self.cli.call_async(self.req)
+        self.future = self.enc.call_async(self.reqEn)
         rclpy.spin_until_future_complete(self, self.future)
         return self.future.result()
-    def send_encoded(self, encoded):
+    def decode_data(self, encoded):
         self.reqDec.encoded = encoded
-        self.future = self.cli.call_async(self.req)
+        self.future = self.dec.call_async(self.reqDec)
         rclpy.spin_until_future_complete(self, self.future)
         return self.future.result()
     
