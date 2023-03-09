@@ -27,6 +27,8 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Command.msg"
+  "srv/Coder.srv"
+  "srv/Decoder.srv"
   LIBRARY_NAME ${PROJECT_NAME}
 )
 ament_package()

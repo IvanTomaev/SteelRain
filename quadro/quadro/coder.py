@@ -1,12 +1,24 @@
-from random import randint
-class coder:
+
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from quadro_interface.srv import Coder, Decoder
+
+
+class coder(Node):
     def __init__(self):
+        super().__init__('coder')
+        self.subscription = self.create_subscription(String, 'key_data', self.callback, 10)
+        self.coderSrv = self.create_service(Coder, 'coder', self.encode)
+        self.decoderSrv = self.create_service(Decoder, 'decoder', self.decode)
         self.key = ''
-        self.generateKey()
-    
-    def encode(self, data):
+
+    def callback(self, msg):
+        self.key = msg.data
+
+    def encode(self, request, response):
         data = data[::-1]
-        data = list(data)
+        data = list(request.data)
         j= 0
         for i,item in enumerate(data):
             next_pos = ord(item) + ord(self.key[j])
@@ -20,12 +32,13 @@ class coder:
                 temp = data[i-1]
                 data[i-1]= data[i]
                 data[i] = temp
+        response.encoded = ''.join(data)[::-1]
         return ''.join(data)
 
 
-    def decode(self, data):
+    def decode(self, request, response):
         j = 0
-        data = list(data)
+        data = list(request.encoded)
         for i,item in enumerate(data):
             if i%2 == 0 and i<len(data)-1:
                 temp = data[i+1]
@@ -39,17 +52,18 @@ class coder:
             j+=1
             if j == len(self.key):
                 j = 0
+        response.data = ''.join(data)[::-1]
+        return response
 
-        return ''.join(data)[::-1]
+    
+def main(args = None):
+    rclpy.init(args=args)
+    coder = coder()
+    rclpy.spin(coder)
 
-    def generateKey(self):
-        for i in range(128):
-            self.key+=chr(randint(32,126))
 
 
 if __name__ == '__main__':
-    coder = coder()
+    main()
 
-    code = coder.encode('Every inch of wall space is covered by a bookcase. Each bookcase has six shelves, going almost to the ceiling. Some bookshelves are stacked to the brim with hardback books: science, maths, history, and everything else. Other shelves have two layers of paperback science fiction, with the back layer of books propped up on old tissue boxes or lengths of wood, so that you can see the back layer of books above the books in front. And it still isn’t enough. Books are overflowing onto the tables and the sofas and making little heaps under the windows.')
-    key = coder.key
-    print(code)
+    
