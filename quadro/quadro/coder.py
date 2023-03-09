@@ -58,8 +58,8 @@ class coder(Node):
     
 def main(args = None):
     rclpy.init(args=args)
-    coder = coder()
-    rclpy.spin(coder)
+    cod = coder()
+    rclpy.spin(cod)
 
 
 
