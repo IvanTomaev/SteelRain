@@ -24,7 +24,8 @@ setup(
             'connect = quadro.connect:main',
             'camera = quadro.camera:main',
             'controller = quadro.controller:main',
-            'coder = quadro.coder:main'
+            'coder = quadro.coder:main',
+            'decoder = quadro.decoder:main'
         ],
     },
 )

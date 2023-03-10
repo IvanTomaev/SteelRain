@@ -12,7 +12,7 @@ class Main(Node):
         self.check = 'loremipsum'
         super().__init__('main')
         self.publisher = self.create_publisher(String, 'actions', 10)
-        self.keyPublisher = self.create_publisher(String, 'ket_data',10)
+        self.keyPublisher = self.create_publisher(String, 'key_data',10)
         self.subcriber = self.create_subscription(String, 'telemetry', self.callback, 10)
         self.Mainsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.Mainsocket.bind(('',8080))
@@ -21,7 +21,7 @@ class Main(Node):
         while not self.enc.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('encoding service not available, waiting again...')
         self.reqEn = Coder.Request()
-        self.dec = self.create_client(Coder, 'coder')
+        self.dec = self.create_client(Decoder, 'decoder')
         while not self.dec.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('decoding service not available, waiting again...')
         self.reqDec = Decoder.Request()
@@ -33,10 +33,12 @@ class Main(Node):
         self.keyPublisher.publish(msg)
         while True:
             data = self.getData()
-            self.get_logger().info('received daa : %s' %data)
-            data = self.decode_data(data).data.split()
-            if data[0] == self.check():
-                print(data)
+            self.get_logger().info('received data : %s' %data)
+            data = self.decode_data(data).data
+            self.get_logger().info('decoded data : %s' %data)
+            data = data.split()
+            if data[0] == self.check:
+                self.get_logger().info('validated')
                 #self.controls(data[1::])
             else:
                 pass
