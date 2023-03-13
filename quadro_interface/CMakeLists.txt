@@ -23,8 +23,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Command.msg"
   "srv/Coder.srv"
   "srv/Decoder.srv"
-  "srv/Decoderbin.srv"
-  "srv/Coderbin.srv"
+  "srv/BinaryDecoder.srv"
+  "srv/BinaryCoder.srv"
   #LIBRARY_NAME ${PROJECT_NAME}
 )
 if(BUILD_TESTING)
